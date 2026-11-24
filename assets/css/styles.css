@@ -144,8 +144,7 @@ ul {
   gap: 16px;
   min-height: var(--header);
   padding: 10px 20px;
-  background: rgba(250, 246, 241, 0.88);
-  backdrop-filter: blur(14px);
+  background: rgba(250, 246, 241, 0.97);
   border-bottom: 1px solid transparent;
 }
 
@@ -328,10 +327,14 @@ ul {
   height: 100%;
 }
 
+/* A soft-edged gradient instead of filter: blur(8px); the 16px padding holds the feathered edge. */
 .blob {
   position: absolute;
+  box-sizing: content-box;
+  padding: 16px;
+  margin: -16px;
   border-radius: 50%;
-  filter: blur(8px);
+  background: radial-gradient(closest-side, var(--blob) calc(100% - 32px), transparent);
   opacity: 0.7;
 }
 
@@ -340,7 +343,7 @@ ul {
   height: 340px;
   right: -60px;
   top: -40px;
-  background: rgba(224, 138, 60, 0.35);
+  --blob: rgba(224, 138, 60, 0.35);
   animation: drift-a 16s ease-in-out infinite alternate;
 }
 
@@ -349,7 +352,7 @@ ul {
   height: 280px;
   left: -80px;
   bottom: 10%;
-  background: rgba(58, 30, 46, 0.12);
+  --blob: rgba(58, 30, 46, 0.12);
   animation: drift-b 18s ease-in-out infinite alternate;
 }
 
@@ -358,7 +361,7 @@ ul {
   height: 180px;
   right: 28%;
   bottom: 8%;
-  background: rgba(224, 138, 60, 0.2);
+  --blob: rgba(224, 138, 60, 0.2);
   animation: drift-c 14s ease-in-out infinite alternate;
 }
 
@@ -490,7 +493,6 @@ ul {
 .portrait-tilt {
   position: relative;
   z-index: 1;
-  transform-style: preserve-3d;
   transition: transform 0.18s ease-out;
 }
 
@@ -550,17 +552,26 @@ ul {
 }
 
 .status i {
+  position: relative;
   width: 0.55rem;
   height: 0.55rem;
   border-radius: 50%;
   background: var(--amber);
-  box-shadow: 0 0 0 4px rgba(224, 138, 60, 0.28);
   flex-shrink: 0;
+}
+
+/* The pulse ring scales and fades (compositor-only) instead of animating box-shadow, which repaints every frame. */
+.status i::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: rgba(224, 138, 60, 0.28);
   animation: status-pulse 2s ease-in-out infinite;
 }
 
 @keyframes status-pulse {
-  50% { box-shadow: 0 0 0 8px rgba(224, 138, 60, 0); }
+  50% { transform: scale(1.48); opacity: 0; }
 }
 
 .btn-ink {
@@ -931,7 +942,6 @@ ul {
 .project {
   position: relative;
   padding: 22px;
-  transform-style: preserve-3d;
   transition: transform 0.16s ease-out;
   background:
     radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), rgba(224, 138, 60, 0.2), transparent 42%),
@@ -1300,7 +1310,10 @@ ul {
 .cursor {
   display: none;
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
   z-index: 80;
   pointer-events: none;
   opacity: 0;
@@ -1312,6 +1325,7 @@ ul {
   top: 0;
   left: 0;
   border-radius: 50%;
+  will-change: transform;
 }
 
 .cursor-dot {
@@ -1583,7 +1597,7 @@ html[lang="de"] .only-en { display: none; }
   .icon-padel,
   .icon-tennis,
   .play-ball,
-  .status i,
+  .status i::after,
   .portrait-offset {
     animation: none;
   }

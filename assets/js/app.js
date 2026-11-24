@@ -12,6 +12,34 @@
     }
   }
 
+  // One requestAnimationFrame loop drives every per-frame task on the page.
+  // Tasks may remove themselves while running; adding a task twice is a no-op.
+  var ticker = (function () {
+    var tasks = [];
+    var id = 0;
+    function run(now) {
+      id = 0;
+      for (var i = tasks.length - 1; i >= 0; i -= 1) {
+        if (tasks[i]) tasks[i](now);
+      }
+      if (tasks.length && !id) id = requestAnimationFrame(run);
+    }
+    return {
+      add: function (fn) {
+        if (tasks.indexOf(fn) === -1) tasks.push(fn);
+        if (!id) id = requestAnimationFrame(run);
+      },
+      remove: function (fn) {
+        var i = tasks.indexOf(fn);
+        if (i !== -1) tasks.splice(i, 1);
+        if (!tasks.length && id) {
+          cancelAnimationFrame(id);
+          id = 0;
+        }
+      }
+    };
+  })();
+
   ready(function () {
     initNav();
     initProgress();
@@ -81,13 +109,15 @@
     var bar = document.querySelector(".progress span");
     if (!bar) return;
     var update = function () {
+      ticker.remove(update);
       var max = document.documentElement.scrollHeight - window.innerHeight;
       var value = max > 0 ? window.scrollY / max : 0;
       bar.style.transform = "scaleX(" + Math.max(0, Math.min(1, value)) + ")";
     };
+    var schedule = function () { ticker.add(update); };
     update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
   }
 
   function initLangMemory() {
@@ -205,12 +235,12 @@
       var start = performance.now();
       var duration = 1100;
       function frame(now) {
-        var t = Math.min(1, (now - start) / duration);
+        var t = Math.max(0, Math.min(1, (now - start) / duration));
         var eased = 1 - Math.pow(1 - t, 3);
         render(node, target * eased);
-        if (t < 1) requestAnimationFrame(frame);
+        if (t >= 1) ticker.remove(frame);
       }
-      requestAnimationFrame(frame);
+      ticker.add(frame);
     }
 
     if (reduced || !("IntersectionObserver" in window)) {
@@ -239,8 +269,10 @@
     var w = 0;
     var h = 0;
     var heroWidth = 0;
+    var heroX = 0;
+    var heroY = 0;
     var dpr = 1;
-    var raf = 0;
+    var running = false;
     var onScreen = true;
 
     function seed(rect) {
@@ -258,10 +290,13 @@
     }
 
     // Returns true when the canvas size changed. A hero of 0x0 (not laid out yet) is ignored.
+    // The backing store is capped at 1.5x: the faint dots look the same and there are far fewer pixels to fill.
     function resize() {
       var rect = hero.getBoundingClientRect();
       if (!rect.width || !rect.height) return false;
-      var ratio = window.devicePixelRatio || 1;
+      heroX = rect.left + window.scrollX;
+      heroY = rect.top + window.scrollY;
+      var ratio = Math.min(window.devicePixelRatio || 1, 1.5);
       var nextW = Math.floor(rect.width * ratio);
       var nextH = Math.floor(rect.height * ratio);
       if (nextW === w && nextH === h && ratio === dpr) return false;
@@ -283,14 +318,16 @@
       var mx = mouse.x * dpr;
       var my = mouse.y * dpr;
       var influence = 140 * dpr;
+      var influence2 = influence * influence;
       for (var i = 0; i < dots.length; i += 1) {
         var d = dots[i];
         d.x += d.vx;
         d.y += d.vy;
         var dx = d.x - mx;
         var dy = d.y - my;
-        var dist = Math.hypot(dx, dy) || 1;
-        if (dist < influence) {
+        var dist2 = dx * dx + dy * dy;
+        if (dist2 < influence2) {
+          var dist = Math.sqrt(dist2) || 1;
           var f = ((influence - dist) / influence) * 0.35;
           d.x += (dx / dist) * f * 4;
           d.y += (dy / dist) * f * 4;
@@ -302,54 +339,70 @@
       }
     }
 
+    // One small path per dot and per line: WebKit rasterises a single path with many subpaths far more
+    // slowly. Line alpha goes through globalAlpha so no colour string is built per line.
     function render() {
       ctx.clearRect(0, 0, w, h);
       var mx = mouse.x * dpr;
       var my = mouse.y * dpr;
       var influence = 140 * dpr;
+      var influence2 = influence * influence;
       var link = 110 * dpr;
+      var link2 = link * link;
+      var n = dots.length;
+      ctx.globalAlpha = 1;
       ctx.fillStyle = "rgba(58, 30, 46, 0.16)";
-      for (var i = 0; i < dots.length; i += 1) {
+      for (var i = 0; i < n; i += 1) {
         ctx.beginPath();
         ctx.arc(dots[i].x, dots[i].y, dots[i].r, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.lineWidth = dpr * 0.8;
-      for (var a = 0; a < dots.length; a += 1) {
-        for (var b = a + 1; b < dots.length; b += 1) {
-          var gap = Math.hypot(dots[a].x - dots[b].x, dots[a].y - dots[b].y);
-          if (gap > link) continue;
-          var midX = (dots[a].x + dots[b].x) / 2;
-          var midY = (dots[a].y + dots[b].y) / 2;
-          var nearMouse = Math.hypot(midX - mx, midY - my) < influence;
-          var alpha = (1 - gap / link) * (nearMouse ? 0.28 : 0.1);
-          ctx.strokeStyle = nearMouse
-            ? "rgba(224, 138, 60, " + (alpha + 0.1) + ")"
-            : "rgba(58, 30, 46, " + alpha + ")";
+      var amber = false;
+      ctx.strokeStyle = "rgb(58, 30, 46)";
+      for (var a = 0; a < n; a += 1) {
+        var da = dots[a];
+        for (var b = a + 1; b < n; b += 1) {
+          var db = dots[b];
+          var gx = da.x - db.x;
+          var gy = da.y - db.y;
+          var gap2 = gx * gx + gy * gy;
+          if (gap2 > link2) continue;
+          var midX = (da.x + db.x) / 2 - mx;
+          var midY = (da.y + db.y) / 2 - my;
+          var nearMouse = midX * midX + midY * midY < influence2;
+          if (nearMouse !== amber) {
+            amber = nearMouse;
+            ctx.strokeStyle = amber ? "rgb(224, 138, 60)" : "rgb(58, 30, 46)";
+          }
+          var strength = 1 - Math.sqrt(gap2) / link;
+          ctx.globalAlpha = nearMouse ? strength * 0.28 + 0.1 : strength * 0.1;
           ctx.beginPath();
-          ctx.moveTo(dots[a].x, dots[a].y);
-          ctx.lineTo(dots[b].x, dots[b].y);
+          ctx.moveTo(da.x, da.y);
+          ctx.lineTo(db.x, db.y);
           ctx.stroke();
         }
       }
+      ctx.globalAlpha = 1;
     }
 
     function frame() {
       move();
       render();
-      raf = requestAnimationFrame(frame);
     }
 
     function stop() {
-      if (raf) cancelAnimationFrame(raf);
-      raf = 0;
+      running = false;
+      ticker.remove(frame);
     }
 
-    // Always cancels first, so there is never more than one loop.
     function start() {
-      stop();
-      if (reduced || !w || !onScreen || document.hidden) return;
-      raf = requestAnimationFrame(frame);
+      if (reduced || !w || !onScreen || document.hidden) {
+        stop();
+        return;
+      }
+      running = true;
+      ticker.add(frame);
     }
 
     function boot() {
@@ -363,7 +416,7 @@
     }
 
     function onResize() {
-      if (resize()) render();
+      if (resize() && !running) render();
     }
 
     requestAnimationFrame(boot);
@@ -373,9 +426,8 @@
     if (!reduced) {
       hero.addEventListener("pointermove", function (event) {
         if (event.pointerType !== "mouse") return;
-        var rect = hero.getBoundingClientRect();
-        mouse.x = event.clientX - rect.left;
-        mouse.y = event.clientY - rect.top;
+        mouse.x = event.pageX - heroX;
+        mouse.y = event.pageY - heroY;
       });
       hero.addEventListener("pointerleave", function () {
         mouse.x = -9999;
@@ -397,12 +449,34 @@
     }
   }
 
+  // Pointer effects measure their element once per hover (not on every move, which forces layout and
+  // reads back the transform they just applied) and write styles at most once per frame.
+  function hoverEffect(el, apply) {
+    var rect = null;
+    var event = null;
+    function write() {
+      ticker.remove(write);
+      if (event) apply(event, rect);
+    }
+    el.addEventListener("pointermove", function (e) {
+      if (e.pointerType !== "mouse") return;
+      if (!rect) rect = el.getBoundingClientRect();
+      event = e;
+      ticker.add(write);
+    });
+    el.addEventListener("pointerleave", function () {
+      ticker.remove(write);
+      event = null;
+      rect = null;
+      el.style.transform = "";
+    });
+    window.addEventListener("scroll", function () { rect = null; }, { passive: true });
+  }
+
   function bindTilt(selector, max) {
     if (reduced || !finePointer) return;
     document.querySelectorAll(selector).forEach(function (el) {
-      el.addEventListener("pointermove", function (event) {
-        if (event.pointerType !== "mouse") return;
-        var rect = el.getBoundingClientRect();
+      hoverEffect(el, function (event, rect) {
         var px = (event.clientX - rect.left) / rect.width;
         var py = (event.clientY - rect.top) / rect.height;
         el.style.setProperty("--mx", (px * 100) + "%");
@@ -410,9 +484,6 @@
         var rx = (0.5 - py) * max;
         var ry = (px - 0.5) * max;
         el.style.transform = "rotateX(" + rx.toFixed(2) + "deg) rotateY(" + ry.toFixed(2) + "deg)";
-      });
-      el.addEventListener("pointerleave", function () {
-        el.style.transform = "";
       });
     });
   }
@@ -425,15 +496,10 @@
   function initMagnetic() {
     if (reduced || !finePointer) return;
     document.querySelectorAll("[data-magnetic]").forEach(function (el) {
-      el.addEventListener("pointermove", function (event) {
-        if (event.pointerType !== "mouse") return;
-        var rect = el.getBoundingClientRect();
+      hoverEffect(el, function (event, rect) {
         var x = event.clientX - (rect.left + rect.width / 2);
         var y = event.clientY - (rect.top + rect.height / 2);
         el.style.transform = "translate(" + (x * 0.22).toFixed(1) + "px, " + (y * 0.28).toFixed(1) + "px)";
-      });
-      el.addEventListener("pointerleave", function () {
-        el.style.transform = "";
       });
     });
   }
@@ -452,30 +518,24 @@
     var rx = x;
     var ry = y;
     var visible = false;
-    var looping = false;
 
     function loop() {
       rx += (x - rx) * 0.18;
       ry += (y - ry) * 0.18;
-      ring.style.transform = "translate(" + rx + "px, " + ry + "px)";
-      root.style.opacity = visible ? "1" : "0";
-      if (Math.abs(x - rx) > 0.4 || Math.abs(y - ry) > 0.4) {
-        requestAnimationFrame(loop);
-      } else {
-        looping = false;
-      }
+      dot.style.transform = "translate(" + x + "px, " + y + "px)";
+      ring.style.transform = "translate(" + rx.toFixed(2) + "px, " + ry.toFixed(2) + "px)";
+      if (Math.abs(x - rx) <= 0.4 && Math.abs(y - ry) <= 0.4) ticker.remove(loop);
     }
 
     document.addEventListener("pointermove", function (event) {
       if (event.pointerType !== "mouse") return;
       x = event.clientX;
       y = event.clientY;
-      visible = true;
-      dot.style.transform = "translate(" + x + "px, " + y + "px)";
-      if (!looping) {
-        looping = true;
-        requestAnimationFrame(loop);
+      if (!visible) {
+        visible = true;
+        root.style.opacity = "1";
       }
+      ticker.add(loop);
     });
 
     document.addEventListener("pointerover", function (event) {
