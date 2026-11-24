@@ -977,6 +977,27 @@ ul {
   color: var(--amber-text);
 }
 
+.grade-badge {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 4px;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  background: #f6d7b8;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+
+.project-feature .grade-badge {
+  background: #f6d7b8;
+  color: var(--ink);
+}
+
 .project h3 {
   font-size: clamp(1.45rem, 2vw, 1.9rem);
   letter-spacing: -0.03em;
@@ -1235,7 +1256,7 @@ html[lang="de"] .only-en { display: none; }
     grid-template-areas:
       "eyebrow photo"
       "title photo"
-      "role photo"
+      "role role"
       "intro intro"
       "status status"
       "actions actions";
@@ -1250,10 +1271,26 @@ html[lang="de"] .only-en { display: none; }
   .roles,
   .lede,
   .status { min-width: 0; }
-  .roles { grid-area: role; font-size: 0.9rem; margin: 0; }
+  .roles {
+    grid-area: role;
+    font-size: 0.95rem;
+    margin: 8px 0 0;
+    width: 100%;
+  }
   #typewriter { white-space: normal; }
   .lede { grid-area: intro; font-size: 0.98rem; margin-top: 14px; }
-  .status { grid-area: status; font-size: 0.78rem; margin-top: 12px; }
+  .status {
+    grid-area: status;
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    align-items: flex-start;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    margin-top: 12px;
+    white-space: normal;
+  }
   .hero-actions { grid-area: actions; margin-top: 14px; }
   .portrait {
     grid-area: photo;
