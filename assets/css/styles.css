@@ -525,6 +525,90 @@ ul {
   50% { transform: translate(8px, -6px); }
 }
 
+/* Firefox only (WebRender re-rasterises every tile under a moving element on each frame, while the other
+   engines just move a composited layer). The drifts move well under a pixel per frame, so these keyframes
+   trace the same ease-in-out curves with steps() segments of under a pixel: the motion matches within
+   0.62px for the blobs and 0.17px for the frame, and the tiles redraw a few times a second instead of 60.
+   WebKit cannot run steps() on the compositor, so it keeps the smooth originals. */
+@supports (-moz-appearance: none) {
+  .blob-a { animation-name: drift-a-stepped; animation-timing-function: linear; }
+  .blob-b { animation-name: drift-b-stepped; animation-timing-function: linear; }
+  .blob-c { animation-name: drift-c-stepped; animation-timing-function: linear; }
+  .portrait-offset { animation-name: frame-drift-stepped; animation-timing-function: linear; }
+
+  @keyframes drift-a-stepped {
+    0% { transform: translate3d(0px, 0px, 0) scale(1); animation-timing-function: steps(3, jump-none); }
+    8.333% { transform: translate3d(-0.544px, 0.408px, 0) scale(1.001); animation-timing-function: steps(5, jump-none); }
+    16.667% { transform: translate3d(-2.245px, 1.684px, 0) scale(1.004); animation-timing-function: steps(8, jump-none); }
+    25% { transform: translate3d(-5.166px, 3.875px, 0) scale(1.01); animation-timing-function: steps(10, jump-none); }
+    33.333% { transform: translate3d(-9.271px, 6.953px, 0) scale(1.019); animation-timing-function: steps(12, jump-none); }
+    41.667% { transform: translate3d(-14.353px, 10.765px, 0) scale(1.029); animation-timing-function: steps(13, jump-none); }
+    50% { transform: translate3d(-20px, 15px, 0) scale(1.04); animation-timing-function: steps(13, jump-none); }
+    58.333% { transform: translate3d(-25.647px, 19.235px, 0) scale(1.051); animation-timing-function: steps(12, jump-none); }
+    66.667% { transform: translate3d(-30.729px, 23.047px, 0) scale(1.061); animation-timing-function: steps(10, jump-none); }
+    75% { transform: translate3d(-34.834px, 26.125px, 0) scale(1.07); animation-timing-function: steps(8, jump-none); }
+    83.333% { transform: translate3d(-37.755px, 28.316px, 0) scale(1.076); animation-timing-function: steps(5, jump-none); }
+    91.667% { transform: translate3d(-39.456px, 29.592px, 0) scale(1.079); animation-timing-function: steps(3, jump-none); }
+    100% { transform: translate3d(-40px, 30px, 0) scale(1.08); }
+  }
+
+  @keyframes drift-b-stepped {
+    0% { transform: translate3d(0px, 0px, 0); animation-timing-function: steps(2, jump-none); }
+    8.333% { transform: translate3d(0.49px, -0.327px, 0); animation-timing-function: steps(4, jump-none); }
+    16.667% { transform: translate3d(2.021px, -1.347px, 0); animation-timing-function: steps(6, jump-none); }
+    25% { transform: translate3d(4.65px, -3.1px, 0); animation-timing-function: steps(7, jump-none); }
+    33.333% { transform: translate3d(8.344px, -5.563px, 0); animation-timing-function: steps(9, jump-none); }
+    41.667% { transform: translate3d(12.918px, -8.612px, 0); animation-timing-function: steps(10, jump-none); }
+    50% { transform: translate3d(18px, -12px, 0); animation-timing-function: steps(10, jump-none); }
+    58.333% { transform: translate3d(23.082px, -15.388px, 0); animation-timing-function: steps(9, jump-none); }
+    66.667% { transform: translate3d(27.656px, -18.437px, 0); animation-timing-function: steps(7, jump-none); }
+    75% { transform: translate3d(31.35px, -20.9px, 0); animation-timing-function: steps(6, jump-none); }
+    83.333% { transform: translate3d(33.979px, -22.653px, 0); animation-timing-function: steps(4, jump-none); }
+    91.667% { transform: translate3d(35.51px, -23.673px, 0); animation-timing-function: steps(2, jump-none); }
+    100% { transform: translate3d(36px, -24px, 0); }
+  }
+
+  @keyframes drift-c-stepped {
+    0% { transform: translate3d(0px, 0px, 0) scale(1); animation-timing-function: steps(2, jump-none); }
+    8.333% { transform: translate3d(-0.272px, -0.408px, 0) scale(1.002); animation-timing-function: steps(4, jump-none); }
+    16.667% { transform: translate3d(-1.123px, -1.684px, 0) scale(1.007); animation-timing-function: steps(6, jump-none); }
+    25% { transform: translate3d(-2.583px, -3.875px, 0) scale(1.015); animation-timing-function: steps(8, jump-none); }
+    33.333% { transform: translate3d(-4.635px, -6.953px, 0) scale(1.028); animation-timing-function: steps(9, jump-none); }
+    41.667% { transform: translate3d(-7.177px, -10.765px, 0) scale(1.043); animation-timing-function: steps(10, jump-none); }
+    50% { transform: translate3d(-10px, -15px, 0) scale(1.06); animation-timing-function: steps(10, jump-none); }
+    58.333% { transform: translate3d(-12.823px, -19.235px, 0) scale(1.077); animation-timing-function: steps(9, jump-none); }
+    66.667% { transform: translate3d(-15.365px, -23.047px, 0) scale(1.092); animation-timing-function: steps(8, jump-none); }
+    75% { transform: translate3d(-17.417px, -26.125px, 0) scale(1.105); animation-timing-function: steps(6, jump-none); }
+    83.333% { transform: translate3d(-18.877px, -28.316px, 0) scale(1.113); animation-timing-function: steps(4, jump-none); }
+    91.667% { transform: translate3d(-19.728px, -29.592px, 0) scale(1.118); animation-timing-function: steps(2, jump-none); }
+    100% { transform: translate3d(-20px, -30px, 0) scale(1.12); }
+  }
+
+  @keyframes frame-drift-stepped {
+    0% { transform: translate(0px, 0px); animation-timing-function: steps(2, jump-none); }
+    5% { transform: translate(0.158px, -0.118px); animation-timing-function: steps(4, jump-none); }
+    10% { transform: translate(0.653px, -0.49px); animation-timing-function: steps(6, jump-none); }
+    15% { transform: translate(1.499px, -1.124px); animation-timing-function: steps(7, jump-none); }
+    20% { transform: translate(2.655px, -1.991px); animation-timing-function: steps(8, jump-none); }
+    25% { transform: translate(4px, -3px); animation-timing-function: steps(8, jump-none); }
+    30% { transform: translate(5.345px, -4.009px); animation-timing-function: steps(7, jump-none); }
+    35% { transform: translate(6.501px, -4.876px); animation-timing-function: steps(6, jump-none); }
+    40% { transform: translate(7.347px, -5.51px); animation-timing-function: steps(4, jump-none); }
+    45% { transform: translate(7.842px, -5.882px); animation-timing-function: steps(2, jump-none); }
+    50% { transform: translate(8px, -6px); animation-timing-function: steps(2, jump-none); }
+    55% { transform: translate(7.842px, -5.882px); animation-timing-function: steps(4, jump-none); }
+    60% { transform: translate(7.347px, -5.51px); animation-timing-function: steps(6, jump-none); }
+    65% { transform: translate(6.501px, -4.876px); animation-timing-function: steps(7, jump-none); }
+    70% { transform: translate(5.345px, -4.009px); animation-timing-function: steps(8, jump-none); }
+    75% { transform: translate(4px, -3px); animation-timing-function: steps(8, jump-none); }
+    80% { transform: translate(2.655px, -1.991px); animation-timing-function: steps(7, jump-none); }
+    85% { transform: translate(1.499px, -1.124px); animation-timing-function: steps(6, jump-none); }
+    90% { transform: translate(0.653px, -0.49px); animation-timing-function: steps(4, jump-none); }
+    95% { transform: translate(0.158px, -0.118px); animation-timing-function: steps(2, jump-none); }
+    100% { transform: translate(0px, 0px); }
+  }
+}
+
 .portrait-badge {
   position: absolute;
   left: 16px;

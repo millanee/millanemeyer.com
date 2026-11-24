@@ -473,14 +473,18 @@
     window.addEventListener("scroll", function () { rect = null; }, { passive: true });
   }
 
-  function bindTilt(selector, max) {
+  // Only elements whose background reads --mx/--my get them: setting an inherited custom property
+  // restyles the whole subtree.
+  function bindTilt(selector, max, glow) {
     if (reduced || !finePointer) return;
     document.querySelectorAll(selector).forEach(function (el) {
       hoverEffect(el, function (event, rect) {
         var px = (event.clientX - rect.left) / rect.width;
         var py = (event.clientY - rect.top) / rect.height;
-        el.style.setProperty("--mx", (px * 100) + "%");
-        el.style.setProperty("--my", (py * 100) + "%");
+        if (glow) {
+          el.style.setProperty("--mx", (px * 100) + "%");
+          el.style.setProperty("--my", (py * 100) + "%");
+        }
         var rx = (0.5 - py) * max;
         var ry = (px - 0.5) * max;
         el.style.transform = "rotateX(" + rx.toFixed(2) + "deg) rotateY(" + ry.toFixed(2) + "deg)";
@@ -489,8 +493,8 @@
   }
 
   function initTilt() {
-    bindTilt(".portrait-tilt", 8);
-    bindTilt(".project", 6);
+    bindTilt(".portrait-tilt", 8, false);
+    bindTilt(".project", 6, true);
   }
 
   function initMagnetic() {
