@@ -231,114 +231,170 @@
   function initNetwork() {
     var canvas = document.querySelector(".network");
     if (!canvas) return;
-    var ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    var parent = canvas.parentElement;
-    var dots = [];
+    var hero = canvas.closest(".hero");
+    var ctx = canvas.getContext("2d", { alpha: true });
+    if (!hero || !ctx) return;
     var mouse = { x: -9999, y: -9999 };
-    var running = true;
-    var width = 0;
-    var height = 0;
-    var windowWidth = window.innerWidth;
+    var dots = [];
+    var w = 0;
+    var h = 0;
+    var heroWidth = 0;
+    var dpr = 1;
+    var raf = 0;
+    var onScreen = true;
 
-    function resize(rebuild) {
-      var rect = parent.getBoundingClientRect();
-      var nextWidth = Math.max(1, rect.width);
-      var nextHeight = Math.max(1, rect.height);
-      var sizeChanged = Math.abs(nextWidth - width) >= 1 || Math.abs(nextHeight - height) >= 1;
-      if (!rebuild && !sizeChanged && dots.length) return;
-      width = nextWidth;
-      height = nextHeight;
-      var dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(height * dpr);
-      canvas.style.width = width + "px";
-      canvas.style.height = height + "px";
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      if (!(rebuild || !dots.length)) return;
-      var count = width < 700 ? 28 : 58;
+    function seed(rect) {
+      var count = reduced ? 28 : Math.min(80, Math.floor((rect.width * rect.height) / 14000));
       dots = [];
       for (var i = 0; i < count; i += 1) {
         dots.push({
-          x: Math.random() * width,
-          y: Math.random() * height,
-          vx: (Math.random() - 0.5) * 0.35,
-          vy: (Math.random() - 0.5) * 0.35
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 0.25 * dpr,
+          vy: (Math.random() - 0.5) * 0.25 * dpr,
+          r: (1 + Math.random() * 1.4) * dpr
         });
       }
     }
 
-    function step() {
-      if (!running) return;
-      ctx.clearRect(0, 0, width, height);
-      var link = width < 700 ? 88 : 126;
-      for (var i = 0; i < dots.length; i += 1) {
-        var dot = dots[i];
-        if (!reduced) {
-          var dx = dot.x - mouse.x;
-          var dy = dot.y - mouse.y;
-          var dist = Math.hypot(dx, dy);
-          if (dist < 140 && dist > 0) {
-            dot.x += (dx / dist) * 0.45;
-            dot.y += (dy / dist) * 0.45;
-          }
-          dot.x += dot.vx;
-          dot.y += dot.vy;
-          if (dot.x < 0 || dot.x > width) dot.vx *= -1;
-          if (dot.y < 0 || dot.y > height) dot.vy *= -1;
-        }
-        ctx.beginPath();
-        ctx.fillStyle = "rgba(58, 30, 46, 0.55)";
-        ctx.arc(dot.x, dot.y, 2.1, 0, Math.PI * 2);
-        ctx.fill();
-        for (var j = i + 1; j < dots.length; j += 1) {
-          var other = dots[j];
-          var gap = Math.hypot(dot.x - other.x, dot.y - other.y);
-          if (gap < link) {
-            ctx.strokeStyle = "rgba(224, 138, 60, " + (1 - gap / link) * 0.55 + ")";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(dot.x, dot.y);
-            ctx.lineTo(other.x, other.y);
-            ctx.stroke();
-          }
-        }
+    // Returns true when the canvas size changed. A hero of 0x0 (not laid out yet) is ignored.
+    function resize() {
+      var rect = hero.getBoundingClientRect();
+      if (!rect.width || !rect.height) return false;
+      var ratio = window.devicePixelRatio || 1;
+      var nextW = Math.floor(rect.width * ratio);
+      var nextH = Math.floor(rect.height * ratio);
+      if (nextW === w && nextH === h && ratio === dpr) return false;
+      var rebuild = !dots.length || rect.width !== heroWidth || ratio !== dpr;
+      if (!rebuild) {
+        for (var i = 0; i < dots.length; i += 1) dots[i].y *= nextH / h;
       }
-      if (!reduced) requestAnimationFrame(step);
+      w = canvas.width = nextW;
+      h = canvas.height = nextH;
+      canvas.style.width = rect.width + "px";
+      canvas.style.height = rect.height + "px";
+      heroWidth = rect.width;
+      dpr = ratio;
+      if (rebuild) seed(rect);
+      return true;
     }
 
-    resize(true);
-    step();
-    window.addEventListener("resize", function () {
-      var nextWindowWidth = window.innerWidth;
-      var widthChanged = nextWindowWidth !== windowWidth;
-      windowWidth = nextWindowWidth;
-      resize(widthChanged);
-      if (reduced) step();
-    });
+    function move() {
+      var mx = mouse.x * dpr;
+      var my = mouse.y * dpr;
+      var influence = 140 * dpr;
+      for (var i = 0; i < dots.length; i += 1) {
+        var d = dots[i];
+        d.x += d.vx;
+        d.y += d.vy;
+        var dx = d.x - mx;
+        var dy = d.y - my;
+        var dist = Math.hypot(dx, dy) || 1;
+        if (dist < influence) {
+          var f = ((influence - dist) / influence) * 0.35;
+          d.x += (dx / dist) * f * 4;
+          d.y += (dy / dist) * f * 4;
+        }
+        if (d.x < 0) { d.x = 0; d.vx = Math.abs(d.vx); }
+        else if (d.x > w) { d.x = w; d.vx = -Math.abs(d.vx); }
+        if (d.y < 0) { d.y = 0; d.vy = Math.abs(d.vy); }
+        else if (d.y > h) { d.y = h; d.vy = -Math.abs(d.vy); }
+      }
+    }
 
-    var stage = canvas.closest(".hero") || parent;
-    if (!reduced && finePointer) {
-      stage.addEventListener("pointermove", function (event) {
+    function render() {
+      ctx.clearRect(0, 0, w, h);
+      var mx = mouse.x * dpr;
+      var my = mouse.y * dpr;
+      var influence = 140 * dpr;
+      var link = 110 * dpr;
+      ctx.fillStyle = "rgba(58, 30, 46, 0.16)";
+      for (var i = 0; i < dots.length; i += 1) {
+        ctx.beginPath();
+        ctx.arc(dots[i].x, dots[i].y, dots[i].r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.lineWidth = dpr * 0.8;
+      for (var a = 0; a < dots.length; a += 1) {
+        for (var b = a + 1; b < dots.length; b += 1) {
+          var gap = Math.hypot(dots[a].x - dots[b].x, dots[a].y - dots[b].y);
+          if (gap > link) continue;
+          var midX = (dots[a].x + dots[b].x) / 2;
+          var midY = (dots[a].y + dots[b].y) / 2;
+          var nearMouse = Math.hypot(midX - mx, midY - my) < influence;
+          var alpha = (1 - gap / link) * (nearMouse ? 0.28 : 0.1);
+          ctx.strokeStyle = nearMouse
+            ? "rgba(224, 138, 60, " + (alpha + 0.1) + ")"
+            : "rgba(58, 30, 46, " + alpha + ")";
+          ctx.beginPath();
+          ctx.moveTo(dots[a].x, dots[a].y);
+          ctx.lineTo(dots[b].x, dots[b].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    function frame() {
+      move();
+      render();
+      raf = requestAnimationFrame(frame);
+    }
+
+    function stop() {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    }
+
+    // Always cancels first, so there is never more than one loop.
+    function start() {
+      stop();
+      if (reduced || !w || !onScreen || document.hidden) return;
+      raf = requestAnimationFrame(frame);
+    }
+
+    function boot() {
+      resize();
+      if (!w) {
+        requestAnimationFrame(boot);
+        return;
+      }
+      render();
+      start();
+    }
+
+    function onResize() {
+      if (resize()) render();
+    }
+
+    requestAnimationFrame(boot);
+    window.addEventListener("resize", onResize, { passive: true });
+    window.addEventListener("load", onResize);
+
+    if (!reduced) {
+      hero.addEventListener("pointermove", function (event) {
         if (event.pointerType !== "mouse") return;
-        var rect = parent.getBoundingClientRect();
+        var rect = hero.getBoundingClientRect();
         mouse.x = event.clientX - rect.left;
         mouse.y = event.clientY - rect.top;
       });
-      stage.addEventListener("pointerleave", function () {
+      hero.addEventListener("pointerleave", function () {
         mouse.x = -9999;
         mouse.y = -9999;
       });
     }
 
     document.addEventListener("visibilitychange", function () {
-      if (document.hidden) {
-        running = false;
-      } else if (!running) {
-        running = true;
-        if (!reduced) step();
-      }
+      if (document.hidden) stop();
+      else start();
     });
+
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(function (entries) {
+        onScreen = entries[entries.length - 1].isIntersecting;
+        if (onScreen) start();
+        else stop();
+      }).observe(hero);
+    }
   }
 
   function bindTilt(selector, max) {
