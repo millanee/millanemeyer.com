@@ -234,53 +234,77 @@
     var ctx = canvas.getContext("2d");
     if (!ctx) return;
     var parent = canvas.parentElement;
+    var stage = canvas.closest(".hero") || parent;
     var dots = [];
-    var mouse = { x: -9999, y: -9999 };
-    var running = true;
     var width = 0;
     var height = 0;
+    var mouse = { x: -9999, y: -9999, active: false };
+    var rafId = 0;
+    var lastTime = 0;
+    var onScreen = true;
+    var resizeTimer = 0;
 
-    function resize() {
-      var rect = parent.getBoundingClientRect();
-      width = Math.max(1, rect.width);
-      height = Math.max(1, rect.height);
+    function baseSpeed() {
+      return 12 + Math.random() * 16;
+    }
+
+    function makeDot(x, y) {
+      var angle = Math.random() * Math.PI * 2;
+      var v = baseSpeed();
+      return {
+        x: x,
+        y: y,
+        vx: Math.cos(angle) * v,
+        vy: Math.sin(angle) * v,
+        base: v,
+        wander: Math.random() * Math.PI * 2
+      };
+    }
+
+    function desiredCount() {
+      return width < 700 ? 42 : 62;
+    }
+
+    function layout(nextW, nextH, rebuild) {
+      var prevW = width;
+      var prevH = height;
+      width = Math.max(1, nextW);
+      height = Math.max(1, nextH);
       var dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       canvas.style.width = width + "px";
       canvas.style.height = height + "px";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      var count = width < 700 ? 28 : 58;
-      dots = [];
-      for (var i = 0; i < count; i += 1) {
-        dots.push({
-          x: Math.random() * width,
-          y: Math.random() * height,
-          vx: (Math.random() - 0.5) * 0.35,
-          vy: (Math.random() - 0.5) * 0.35
-        });
+      if (rebuild || !dots.length || prevW < 2) {
+        dots = [];
+        var created = desiredCount();
+        for (var i = 0; i < created; i += 1) {
+          dots.push(makeDot(Math.random() * width, Math.random() * height));
+        }
+        return;
       }
+      var sx = width / prevW;
+      var sy = height / prevH;
+      for (var j = 0; j < dots.length; j += 1) {
+        dots[j].x = Math.min(width - 1, Math.max(0, dots[j].x * sx));
+        dots[j].y = Math.min(height - 1, Math.max(0, dots[j].y * sy));
+      }
+      var want = desiredCount();
+      while (dots.length < want) dots.push(makeDot(Math.random() * width, Math.random() * height));
+      if (dots.length > want) dots.length = want;
     }
 
-    function step() {
-      if (!running) return;
+    function readSize() {
+      var rect = parent.getBoundingClientRect();
+      return { w: rect.width, h: rect.height };
+    }
+
+    function draw() {
       ctx.clearRect(0, 0, width, height);
-      var link = width < 700 ? 88 : 126;
+      var link = width < 700 ? 112 : 148;
       for (var i = 0; i < dots.length; i += 1) {
         var dot = dots[i];
-        if (!reduced) {
-          var dx = dot.x - mouse.x;
-          var dy = dot.y - mouse.y;
-          var dist = Math.hypot(dx, dy);
-          if (dist < 140 && dist > 0) {
-            dot.x += (dx / dist) * 0.45;
-            dot.y += (dy / dist) * 0.45;
-          }
-          dot.x += dot.vx;
-          dot.y += dot.vy;
-          if (dot.x < 0 || dot.x > width) dot.vx *= -1;
-          if (dot.y < 0 || dot.y > height) dot.vy *= -1;
-        }
         ctx.beginPath();
         ctx.fillStyle = "rgba(58, 30, 46, 0.55)";
         ctx.arc(dot.x, dot.y, 2.1, 0, Math.PI * 2);
@@ -289,7 +313,7 @@
           var other = dots[j];
           var gap = Math.hypot(dot.x - other.x, dot.y - other.y);
           if (gap < link) {
-            ctx.strokeStyle = "rgba(224, 138, 60, " + (1 - gap / link) * 0.55 + ")";
+            ctx.strokeStyle = "rgba(224, 138, 60, " + ((1 - gap / link) * 0.55) + ")";
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(dot.x, dot.y);
@@ -298,38 +322,126 @@
           }
         }
       }
-      if (!reduced) requestAnimationFrame(step);
     }
 
-    resize();
-    step();
+    function integrate(dt) {
+      for (var i = 0; i < dots.length; i += 1) {
+        var dot = dots[i];
+        dot.wander += dt * 0.85;
+        var ax = Math.cos(dot.wander) * 10;
+        var ay = Math.sin(dot.wander * 0.83 + 1.3) * 10;
+        if (mouse.active) {
+          var dx = dot.x - mouse.x;
+          var dy = dot.y - mouse.y;
+          var dist = Math.hypot(dx, dy);
+          if (dist < 150 && dist > 0.001) {
+            var push = (1 - dist / 150) * 80;
+            ax += (dx / dist) * push;
+            ay += (dy / dist) * push;
+          }
+        }
+        dot.vx += ax * dt;
+        dot.vy += ay * dt;
+        var mag = Math.hypot(dot.vx, dot.vy) || 1;
+        var next = mag + (dot.base - mag) * (1 - Math.exp(-2.4 * dt));
+        if (next < 12) next = 12;
+        if (next > 96) next = 96;
+        dot.vx = (dot.vx / mag) * next;
+        dot.vy = (dot.vy / mag) * next;
+        dot.x += dot.vx * dt;
+        dot.y += dot.vy * dt;
+        if (dot.x < 1) {
+          dot.x = 1;
+          dot.vx = Math.abs(dot.vx);
+        } else if (dot.x > width - 1) {
+          dot.x = width - 1;
+          dot.vx = -Math.abs(dot.vx);
+        }
+        if (dot.y < 1) {
+          dot.y = 1;
+          dot.vy = Math.abs(dot.vy);
+        } else if (dot.y > height - 1) {
+          dot.y = height - 1;
+          dot.vy = -Math.abs(dot.vy);
+        }
+      }
+    }
+
+    function frame(now) {
+      if (!onScreen || document.hidden) {
+        rafId = 0;
+        return;
+      }
+      if (!lastTime) lastTime = now;
+      var dt = Math.min(0.05, Math.max(0, (now - lastTime) / 1000));
+      lastTime = now;
+      if (dt > 0) integrate(dt);
+      draw();
+      rafId = requestAnimationFrame(frame);
+    }
+
+    function start() {
+      if (reduced || rafId || !onScreen || document.hidden) return;
+      lastTime = 0;
+      rafId = requestAnimationFrame(frame);
+    }
+
+    function stop() {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
+      lastTime = 0;
+    }
+
+    var box = readSize();
+    layout(box.w, box.h, true);
+    if (reduced) {
+      draw();
+    } else {
+      start();
+    }
+
     window.addEventListener("resize", function () {
-      resize();
-      if (reduced) step();
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(function () {
+        var next = readSize();
+        if (Math.abs(next.w - width) < 24) return;
+        layout(next.w, next.h, false);
+        if (reduced) draw();
+      }, 160);
     });
 
-    var stage = canvas.closest(".hero") || parent;
+    function releaseMouse() {
+      mouse.active = false;
+      mouse.x = -9999;
+      mouse.y = -9999;
+    }
+
     if (!reduced && finePointer) {
       stage.addEventListener("pointermove", function (event) {
         if (event.pointerType !== "mouse") return;
         var rect = parent.getBoundingClientRect();
         mouse.x = event.clientX - rect.left;
         mouse.y = event.clientY - rect.top;
+        mouse.active = true;
       });
-      stage.addEventListener("pointerleave", function () {
-        mouse.x = -9999;
-        mouse.y = -9999;
-      });
+      stage.addEventListener("pointerleave", releaseMouse);
+      document.addEventListener("mouseleave", releaseMouse);
+      window.addEventListener("blur", releaseMouse);
     }
 
     document.addEventListener("visibilitychange", function () {
-      if (document.hidden) {
-        running = false;
-      } else if (!running) {
-        running = true;
-        if (!reduced) step();
-      }
+      if (document.hidden) stop();
+      else start();
     });
+
+    if (!reduced && "IntersectionObserver" in window) {
+      var observer = new IntersectionObserver(function (entries) {
+        onScreen = !!(entries[0] && entries[0].isIntersecting);
+        if (onScreen) start();
+        else stop();
+      }, { threshold: 0 });
+      observer.observe(stage);
+    }
   }
 
   function bindTilt(selector, max) {
