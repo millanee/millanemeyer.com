@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page not found — Millane Meyer</title>
+  <meta name="description" content="This page is not on Millane Meyer's portfolio.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#FAF6F1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="stylesheet" href="/assets/css/fonts.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <script>
+    document.documentElement.classList.add("js");
+    (function () {
+      var onDe = /\/de(\/|$)/.test(location.pathname);
+      try {
+        if (!onDe && localStorage.getItem("mm-lang") === "de") onDe = true;
+      } catch (error) {}
+      if (onDe) document.documentElement.lang = "de";
+    })();
+  </script>
+</head>
+<body>
+  <header class="site-header is-scrolled">
+    <a class="logo" href="/" data-magnetic aria-label="Millane Meyer">MM</a>
+    <div class="nav-tools">
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="/" hreflang="en" lang="en" data-set-lang="en">EN</a>
+        <a href="/de/" hreflang="de" lang="de" data-set-lang="de">DE</a>
+      </div>
+    </div>
+  </header>
+  <main class="page-404" id="content">
+    <div class="wrap">
+      <p class="kicker">404</p>
+      <h1>404</h1>
+      <p class="only-en">This page is not on the site.</p>
+      <p class="only-de">Diese Seite gibt es hier nicht.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary only-en" data-magnetic href="/">Back to the homepage</a>
+        <a class="btn btn-primary only-de" data-magnetic href="/de/">Zur Startseite</a>
+      </div>
+    </div>
+  </main>
+  <div class="cursor" aria-hidden="true">
+    <span class="cursor-ring"></span>
+    <span class="cursor-dot"></span>
+  </div>
+  <script src="/assets/js/app.js" defer></script>
+</body>
+</html>
