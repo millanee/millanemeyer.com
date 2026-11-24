@@ -231,217 +231,112 @@
   function initNetwork() {
     var canvas = document.querySelector(".network");
     if (!canvas) return;
-    var ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    var parent = canvas.parentElement;
-    var stage = canvas.closest(".hero") || parent;
+    var ctx = canvas.getContext("2d", { alpha: true });
+    var hero = canvas.closest(".hero");
+    if (!ctx || !hero) return;
+    var mouse = { x: -9999, y: -9999 };
     var dots = [];
-    var width = 0;
-    var height = 0;
-    var mouse = { x: -9999, y: -9999, active: false };
-    var rafId = 0;
-    var lastTime = 0;
-    var onScreen = true;
-    var resizeTimer = 0;
+    var w = 0;
+    var h = 0;
+    var raf = 0;
+    var running = true;
 
-    function baseSpeed() {
-      return 12 + Math.random() * 16;
-    }
-
-    function makeDot(x, y) {
-      var angle = Math.random() * Math.PI * 2;
-      var v = baseSpeed();
-      return {
-        x: x,
-        y: y,
-        vx: Math.cos(angle) * v,
-        vy: Math.sin(angle) * v,
-        base: v,
-        wander: Math.random() * Math.PI * 2
-      };
-    }
-
-    function desiredCount() {
-      return width < 700 ? 42 : 62;
-    }
-
-    function layout(nextW, nextH, rebuild) {
-      var prevW = width;
-      var prevH = height;
-      width = Math.max(1, nextW);
-      height = Math.max(1, nextH);
-      var dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(height * dpr);
-      canvas.style.width = width + "px";
-      canvas.style.height = height + "px";
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      if (rebuild || !dots.length || prevW < 2) {
-        dots = [];
-        var created = desiredCount();
-        for (var i = 0; i < created; i += 1) {
-          dots.push(makeDot(Math.random() * width, Math.random() * height));
-        }
-        return;
+    function resize() {
+      var rect = hero.getBoundingClientRect();
+      w = canvas.width = Math.floor(rect.width * devicePixelRatio);
+      h = canvas.height = Math.floor(rect.height * devicePixelRatio);
+      canvas.style.width = rect.width + "px";
+      canvas.style.height = rect.height + "px";
+      var count = reduced ? 28 : Math.min(80, Math.floor((rect.width * rect.height) / 14000));
+      dots = [];
+      for (var i = 0; i < count; i += 1) {
+        dots.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 0.25 * devicePixelRatio,
+          vy: (Math.random() - 0.5) * 0.25 * devicePixelRatio,
+          r: (1 + Math.random() * 1.4) * devicePixelRatio
+        });
       }
-      var sx = width / prevW;
-      var sy = height / prevH;
-      for (var j = 0; j < dots.length; j += 1) {
-        dots[j].x = Math.min(width - 1, Math.max(0, dots[j].x * sx));
-        dots[j].y = Math.min(height - 1, Math.max(0, dots[j].y * sy));
-      }
-      var want = desiredCount();
-      while (dots.length < want) dots.push(makeDot(Math.random() * width, Math.random() * height));
-      if (dots.length > want) dots.length = want;
-    }
-
-    function readSize() {
-      var rect = parent.getBoundingClientRect();
-      return { w: rect.width, h: rect.height };
     }
 
     function draw() {
-      ctx.clearRect(0, 0, width, height);
-      var link = width < 700 ? 112 : 148;
+      if (!running) return;
+      ctx.clearRect(0, 0, w, h);
+      var mx = mouse.x * devicePixelRatio;
+      var my = mouse.y * devicePixelRatio;
+      var influence = 140 * devicePixelRatio;
+
       for (var i = 0; i < dots.length; i += 1) {
-        var dot = dots[i];
+        var d = dots[i];
+        if (!reduced) {
+          d.x += d.vx;
+          d.y += d.vy;
+          if (d.x < 0 || d.x > w) d.vx *= -1;
+          if (d.y < 0 || d.y > h) d.vy *= -1;
+          var dx = d.x - mx;
+          var dy = d.y - my;
+          var dist = Math.hypot(dx, dy) || 1;
+          if (dist < influence) {
+            var f = ((influence - dist) / influence) * 0.35;
+            d.x += (dx / dist) * f * 4;
+            d.y += (dy / dist) * f * 4;
+          }
+        }
         ctx.beginPath();
-        ctx.fillStyle = "rgba(58, 30, 46, 0.55)";
-        ctx.arc(dot.x, dot.y, 2.1, 0, Math.PI * 2);
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(58, 30, 46, 0.16)";
         ctx.fill();
-        for (var j = i + 1; j < dots.length; j += 1) {
-          var other = dots[j];
-          var gap = Math.hypot(dot.x - other.x, dot.y - other.y);
-          if (gap < link) {
-            ctx.strokeStyle = "rgba(224, 138, 60, " + ((1 - gap / link) * 0.55) + ")";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(dot.x, dot.y);
-            ctx.lineTo(other.x, other.y);
-            ctx.stroke();
-          }
+      }
+
+      var link = 110 * devicePixelRatio;
+      for (var a = 0; a < dots.length; a += 1) {
+        for (var b = a + 1; b < dots.length; b += 1) {
+          var ddx = dots[a].x - dots[b].x;
+          var ddy = dots[a].y - dots[b].y;
+          var gap = Math.hypot(ddx, ddy);
+          if (gap > link) continue;
+          var midX = (dots[a].x + dots[b].x) / 2;
+          var midY = (dots[a].y + dots[b].y) / 2;
+          var nearMouse = Math.hypot(midX - mx, midY - my) < influence;
+          var alpha = (1 - gap / link) * (nearMouse ? 0.28 : 0.1);
+          ctx.strokeStyle = nearMouse
+            ? "rgba(224, 138, 60, " + (alpha + 0.1) + ")"
+            : "rgba(58, 30, 46, " + alpha + ")";
+          ctx.lineWidth = devicePixelRatio * 0.8;
+          ctx.beginPath();
+          ctx.moveTo(dots[a].x, dots[a].y);
+          ctx.lineTo(dots[b].x, dots[b].y);
+          ctx.stroke();
         }
       }
+      if (!reduced) raf = requestAnimationFrame(draw);
     }
 
-    function integrate(dt) {
-      for (var i = 0; i < dots.length; i += 1) {
-        var dot = dots[i];
-        dot.wander += dt * 0.85;
-        var ax = Math.cos(dot.wander) * 10;
-        var ay = Math.sin(dot.wander * 0.83 + 1.3) * 10;
-        if (mouse.active) {
-          var dx = dot.x - mouse.x;
-          var dy = dot.y - mouse.y;
-          var dist = Math.hypot(dx, dy);
-          if (dist < 150 && dist > 0.001) {
-            var push = (1 - dist / 150) * 80;
-            ax += (dx / dist) * push;
-            ay += (dy / dist) * push;
-          }
-        }
-        dot.vx += ax * dt;
-        dot.vy += ay * dt;
-        var mag = Math.hypot(dot.vx, dot.vy) || 1;
-        var next = mag + (dot.base - mag) * (1 - Math.exp(-2.4 * dt));
-        if (next < 12) next = 12;
-        if (next > 96) next = 96;
-        dot.vx = (dot.vx / mag) * next;
-        dot.vy = (dot.vy / mag) * next;
-        dot.x += dot.vx * dt;
-        dot.y += dot.vy * dt;
-        if (dot.x < 1) {
-          dot.x = 1;
-          dot.vx = Math.abs(dot.vx);
-        } else if (dot.x > width - 1) {
-          dot.x = width - 1;
-          dot.vx = -Math.abs(dot.vx);
-        }
-        if (dot.y < 1) {
-          dot.y = 1;
-          dot.vy = Math.abs(dot.vy);
-        } else if (dot.y > height - 1) {
-          dot.y = height - 1;
-          dot.vy = -Math.abs(dot.vy);
-        }
-      }
-    }
-
-    function frame(now) {
-      if (!onScreen || document.hidden) {
-        rafId = 0;
-        return;
-      }
-      if (!lastTime) lastTime = now;
-      var dt = Math.min(0.05, Math.max(0, (now - lastTime) / 1000));
-      lastTime = now;
-      if (dt > 0) integrate(dt);
-      draw();
-      rafId = requestAnimationFrame(frame);
-    }
-
-    function start() {
-      if (reduced || rafId || !onScreen || document.hidden) return;
-      lastTime = 0;
-      rafId = requestAnimationFrame(frame);
-    }
-
-    function stop() {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = 0;
-      lastTime = 0;
-    }
-
-    var box = readSize();
-    layout(box.w, box.h, true);
-    if (reduced) {
-      draw();
-    } else {
-      start();
-    }
-
+    resize();
+    draw();
     window.addEventListener("resize", function () {
-      window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(function () {
-        var next = readSize();
-        if (Math.abs(next.w - width) < 24) return;
-        layout(next.w, next.h, false);
-        if (reduced) draw();
-      }, 160);
+      resize();
+      if (reduced) draw();
+    }, { passive: true });
+    hero.addEventListener("mousemove", function (event) {
+      var rect = hero.getBoundingClientRect();
+      mouse.x = event.clientX - rect.left;
+      mouse.y = event.clientY - rect.top;
     });
-
-    function releaseMouse() {
-      mouse.active = false;
+    hero.addEventListener("mouseleave", function () {
       mouse.x = -9999;
       mouse.y = -9999;
-    }
-
-    if (!reduced && finePointer) {
-      stage.addEventListener("pointermove", function (event) {
-        if (event.pointerType !== "mouse") return;
-        var rect = parent.getBoundingClientRect();
-        mouse.x = event.clientX - rect.left;
-        mouse.y = event.clientY - rect.top;
-        mouse.active = true;
-      });
-      stage.addEventListener("pointerleave", releaseMouse);
-      document.addEventListener("mouseleave", releaseMouse);
-      window.addEventListener("blur", releaseMouse);
-    }
-
-    document.addEventListener("visibilitychange", function () {
-      if (document.hidden) stop();
-      else start();
     });
 
-    if (!reduced && "IntersectionObserver" in window) {
-      var observer = new IntersectionObserver(function (entries) {
-        onScreen = !!(entries[0] && entries[0].isIntersecting);
-        if (onScreen) start();
-        else stop();
-      }, { threshold: 0 });
-      observer.observe(stage);
-    }
+    var vis = new IntersectionObserver(function (entries) {
+      running = entries[0].isIntersecting;
+      if (running && !reduced) {
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(draw);
+      }
+    });
+    vis.observe(hero);
   }
 
   function bindTilt(selector, max) {
