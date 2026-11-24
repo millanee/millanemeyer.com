@@ -154,29 +154,19 @@ ul {
 }
 
 .logo {
-  position: relative;
-  display: grid;
-  place-items: center;
+  display: block;
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: var(--ink);
-  color: var(--paper);
-  text-decoration: none;
-  font-weight: 800;
-  letter-spacing: 0.04em;
   flex: none;
   overflow: hidden;
+  line-height: 0;
 }
 
-.logo::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 3px;
-  background: var(--amber);
+.logo img {
+  width: 44px;
+  height: 44px;
+  display: block;
 }
 
 .site-nav {
@@ -1031,6 +1021,180 @@ ul {
   margin-top: 18px;
 }
 
+.cert-grid {
+  position: relative;
+  display: grid;
+  gap: 22px;
+}
+
+.cert-card {
+  position: relative;
+  z-index: 1;
+}
+
+.cert-stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 18px 18px 8px;
+  border: 0;
+  border-radius: 18px;
+  background: #fffdfb;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: visible;
+}
+
+.cert-stage img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(58, 30, 46, 0.12);
+  transform-origin: 50% 100%;
+}
+
+.cert-beam {
+  position: absolute;
+  z-index: 0;
+  left: 18%;
+  right: 18%;
+  bottom: 10%;
+  height: 62%;
+  background: linear-gradient(to top, rgba(224, 138, 60, 0.05), rgba(255, 214, 170, 0.55) 42%, rgba(224, 138, 60, 0));
+  clip-path: polygon(42% 100%, 58% 100%, 108% 0, -8% 0);
+  filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cert-card h3 {
+  margin: 14px 0 4px;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.cert-card .when {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.cert-links {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.cert-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fffdfb;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.cert-links a:hover {
+  border-color: var(--ink);
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: rgba(26, 12, 18, 0.88);
+}
+
+.lightbox[hidden] {
+  display: none;
+}
+
+.lightbox img {
+  max-width: min(960px, 100%);
+  max-height: 82vh;
+  width: auto;
+  height: auto;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (min-width: 800px) {
+  .cert-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cert-grid::before {
+    content: "";
+    position: absolute;
+    inset: -28px;
+    border-radius: 24px;
+    background: rgba(58, 30, 46, 0.16);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+  }
+
+  .cert-grid:has(.cert-stage:hover)::before,
+  .cert-grid:has(.cert-stage:focus-visible)::before {
+    opacity: 1;
+  }
+
+  .cert-card:hover,
+  .cert-card:focus-within {
+    z-index: 2;
+  }
+
+  .cert-stage img {
+    transform: perspective(900px) rotateX(8deg) scale(0.98);
+  }
+
+  .cert-stage img,
+  .cert-beam {
+    transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.45s ease, opacity 0.45s ease;
+  }
+
+  .cert-stage:hover img,
+  .cert-stage:focus-visible img {
+    transform: perspective(900px) rotateX(0deg) translateY(-10px) scale(1.06);
+    box-shadow: 0 28px 50px rgba(58, 30, 46, 0.28), 0 0 32px rgba(224, 138, 60, 0.38);
+  }
+
+  .cert-stage:hover .cert-beam,
+  .cert-stage:focus-visible .cert-beam {
+    opacity: 1;
+  }
+}
+
 .cred-card {
   padding: 22px;
 }
@@ -1379,9 +1543,15 @@ html[lang="de"] .only-en { display: none; }
     transform: none;
   }
 
-  .mind-card:hover {
+  .mind-card:hover,
+  .cert-stage img {
     transform: none;
     box-shadow: none;
+  }
+
+  .cert-beam,
+  .cert-grid::before {
+    display: none;
   }
 
   .marquee-track {

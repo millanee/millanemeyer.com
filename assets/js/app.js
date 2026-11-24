@@ -24,6 +24,7 @@
     initTilt();
     initMagnetic();
     initCursor();
+    initCertificates();
   });
 
   function initNav() {
@@ -416,6 +417,46 @@
       var target = event.target;
       var hot = target && target.closest && target.closest("a, button");
       root.classList.toggle("is-hot", Boolean(hot));
+    });
+  }
+
+  function initCertificates() {
+    var dialog = document.getElementById("cert-lightbox");
+    if (!dialog) return;
+    var image = dialog.querySelector("img");
+    var closeBtn = dialog.querySelector(".lightbox-close");
+    var lastFocus = null;
+
+    function open(stage) {
+      var full = stage.getAttribute("data-full");
+      var alt = stage.getAttribute("data-alt") || "";
+      if (!full) return;
+      image.src = full;
+      image.alt = alt;
+      lastFocus = document.activeElement;
+      dialog.hidden = false;
+      document.body.style.overflow = "hidden";
+      closeBtn.focus();
+    }
+
+    function close() {
+      dialog.hidden = true;
+      image.removeAttribute("src");
+      image.alt = "";
+      document.body.style.overflow = "";
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    document.querySelectorAll(".cert-stage").forEach(function (stage) {
+      stage.addEventListener("click", function () { open(stage); });
+    });
+
+    closeBtn.addEventListener("click", close);
+    dialog.addEventListener("click", function (event) {
+      if (event.target === dialog) close();
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !dialog.hidden) close();
     });
   }
 })();
