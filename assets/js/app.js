@@ -264,20 +264,8 @@
     var hero = canvas.closest(".hero");
     var ctx = canvas.getContext("2d", { alpha: true });
     if (!hero || !ctx) return;
-    // Line alphas are bucketed so each frame strokes a few batched paths with prebuilt colour strings.
-    var LEVELS = 8;
-    var inkStyles = [];
-    var amberStyles = [];
-    for (var l = 0; l < LEVELS; l += 1) {
-      var strength = (l + 0.5) / LEVELS;
-      inkStyles.push("rgba(58, 30, 46, " + (strength * 0.1).toFixed(4) + ")");
-      amberStyles.push("rgba(224, 138, 60, " + (strength * 0.28 + 0.1).toFixed(4) + ")");
-    }
     var mouse = { x: -9999, y: -9999 };
     var dots = [];
-    var pairA = null;
-    var pairB = null;
-    var pairLevel = null;
     var w = 0;
     var h = 0;
     var heroWidth = 0;
@@ -299,10 +287,6 @@
           r: (1 + Math.random() * 1.4) * dpr
         });
       }
-      var pairs = (count * (count - 1)) / 2;
-      pairA = new Uint8Array(pairs);
-      pairB = new Uint8Array(pairs);
-      pairLevel = new Uint8Array(pairs);
     }
 
     // Returns true when the canvas size changed. A hero of 0x0 (not laid out yet) is ignored.
@@ -355,6 +339,8 @@
       }
     }
 
+    // One small path per dot and per line: WebKit rasterises a single path with many subpaths far more
+    // slowly. Line alpha goes through globalAlpha so no colour string is built per line.
     function render() {
       ctx.clearRect(0, 0, w, h);
       var mx = mouse.x * dpr;
@@ -364,16 +350,16 @@
       var link = 110 * dpr;
       var link2 = link * link;
       var n = dots.length;
-      var i;
+      ctx.globalAlpha = 1;
       ctx.fillStyle = "rgba(58, 30, 46, 0.16)";
-      ctx.beginPath();
-      for (i = 0; i < n; i += 1) {
-        ctx.moveTo(dots[i].x + dots[i].r, dots[i].y);
+      for (var i = 0; i < n; i += 1) {
+        ctx.beginPath();
         ctx.arc(dots[i].x, dots[i].y, dots[i].r, 0, Math.PI * 2);
+        ctx.fill();
       }
-      ctx.fill();
-
-      var count = 0;
+      ctx.lineWidth = dpr * 0.8;
+      var amber = false;
+      ctx.strokeStyle = "rgb(58, 30, 46)";
       for (var a = 0; a < n; a += 1) {
         var da = dots[a];
         for (var b = a + 1; b < n; b += 1) {
@@ -382,31 +368,22 @@
           var gy = da.y - db.y;
           var gap2 = gx * gx + gy * gy;
           if (gap2 > link2) continue;
-          var level = Math.min(LEVELS - 1, Math.floor((1 - Math.sqrt(gap2) / link) * LEVELS));
           var midX = (da.x + db.x) / 2 - mx;
           var midY = (da.y + db.y) / 2 - my;
-          pairA[count] = a;
-          pairB[count] = b;
-          pairLevel[count] = midX * midX + midY * midY < influence2 ? LEVELS + level : level;
-          count += 1;
-        }
-      }
-      ctx.lineWidth = dpr * 0.8;
-      for (var s = 0; s < LEVELS * 2; s += 1) {
-        var started = false;
-        for (i = 0; i < count; i += 1) {
-          if (pairLevel[i] !== s) continue;
-          if (!started) {
-            ctx.beginPath();
-            started = true;
+          var nearMouse = midX * midX + midY * midY < influence2;
+          if (nearMouse !== amber) {
+            amber = nearMouse;
+            ctx.strokeStyle = amber ? "rgb(224, 138, 60)" : "rgb(58, 30, 46)";
           }
-          ctx.moveTo(dots[pairA[i]].x, dots[pairA[i]].y);
-          ctx.lineTo(dots[pairB[i]].x, dots[pairB[i]].y);
+          var strength = 1 - Math.sqrt(gap2) / link;
+          ctx.globalAlpha = nearMouse ? strength * 0.28 + 0.1 : strength * 0.1;
+          ctx.beginPath();
+          ctx.moveTo(da.x, da.y);
+          ctx.lineTo(db.x, db.y);
+          ctx.stroke();
         }
-        if (!started) continue;
-        ctx.strokeStyle = s < LEVELS ? inkStyles[s] : amberStyles[s - LEVELS];
-        ctx.stroke();
       }
+      ctx.globalAlpha = 1;
     }
 
     function frame() {
