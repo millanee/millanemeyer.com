@@ -1,5 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="MM">
-  <rect width="32" height="32" rx="6" fill="#3A1E2E"/>
-  <rect y="28" width="32" height="4" fill="#E08A3C"/>
-  <text x="16" y="21.5" text-anchor="middle" font-family="Manrope, Arial, sans-serif" font-size="13" font-weight="800" fill="#FAF6F1">MM</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" role="img" aria-label="mi">
+  <rect width="80" height="80" rx="22" fill="#3A1E2E"/>
+  <path d="M14 78V52C14 38 32 35 38 49v12c0-14 20-16 30-2v19" fill="none" stroke="#E08A3C" stroke-width="11.5" stroke-linecap="butt" stroke-linejoin="round"/>
+  <path d="M29 2.4A56 56 0 1 0 80 60" fill="none" stroke="#E08A3C" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="61.5" cy="20.5" r="6.3" fill="#E08A3C"/>
 </svg>
