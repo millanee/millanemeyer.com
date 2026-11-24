@@ -112,7 +112,7 @@
     }
     if (!roles.length) return;
     if (reduced) {
-      el.textContent = roles.join("  ·  ");
+      el.textContent = roles[0];
       return;
     }
 
