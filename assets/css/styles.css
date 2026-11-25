@@ -1526,8 +1526,11 @@ html[lang="de"] .only-en { display: none; }
 
 @media (max-width: 720px) {
   .hero-copy { display: contents; }
+  /* The name always takes its own two rows next to the photo, and both scale with the viewport, so the
+     longer row ("Millane") uses at most about two thirds of its column even at 320px. */
   .hero-grid {
-    grid-template-columns: minmax(0, 1fr) 124px;
+    --photo: clamp(112px, 31vw, 168px);
+    grid-template-columns: minmax(0, 1fr) var(--photo);
     grid-template-areas:
       "eyebrow photo"
       "title photo"
@@ -1540,7 +1543,12 @@ html[lang="de"] .only-en { display: none; }
     align-items: start;
   }
   .kicker { grid-area: eyebrow; margin-bottom: 6px; }
-  .name { grid-area: title; font-size: 2.15rem; margin: 0; }
+  .name {
+    grid-area: title;
+    flex-direction: column;
+    font-size: clamp(2rem, 9vw, 3.1rem);
+    margin: 0;
+  }
   .kicker,
   .name,
   .roles,
@@ -1569,15 +1577,14 @@ html[lang="de"] .only-en { display: none; }
   .hero-actions { grid-area: actions; margin-top: 14px; }
   .portrait {
     grid-area: photo;
-    width: 124px;
+    width: var(--photo);
+    margin: 0;
     justify-self: end;
   }
   .portrait-frame,
   .portrait-tilt,
   .portrait-frame img {
-    width: 124px;
-    height: 155px;
-    aspect-ratio: auto;
+    width: 100%;
     border-radius: 1.05rem;
   }
   .portrait-offset {
