@@ -454,6 +454,10 @@ ul {
   font-weight: 600;
 }
 
+.caret.is-typing {
+  animation: none;
+}
+
 .caret {
   display: inline-block;
   width: 2px;

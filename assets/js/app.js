@@ -147,17 +147,28 @@
       return;
     }
 
+    // The first role is already in the markup and stays up for a full hold. The caret only blinks while a
+    // word is held; while typing, deleting and during the short gap between words it stays solid, so the
+    // line never reads as an empty "I work as".
+    var caret = el.nextElementSibling;
+    if (caret && !caret.classList.contains("caret")) caret = null;
     var roleIndex = 0;
-    var charIndex = 0;
-    var deleting = false;
+    var charIndex = roles[0].length;
+    var deleting = true;
+
+    function typing(on) {
+      if (caret) caret.classList.toggle("is-typing", on);
+    }
 
     function tick() {
       var word = roles[roleIndex];
+      typing(true);
       if (!deleting) {
         charIndex += 1;
         el.textContent = word.slice(0, charIndex);
         if (charIndex === word.length) {
           deleting = true;
+          typing(false);
           window.setTimeout(tick, 1600);
           return;
         }
@@ -169,14 +180,14 @@
       if (charIndex === 0) {
         deleting = false;
         roleIndex = (roleIndex + 1) % roles.length;
-        window.setTimeout(tick, 280);
+        window.setTimeout(tick, 140);
         return;
       }
       window.setTimeout(tick, 36);
     }
 
-    el.textContent = "";
-    tick();
+    el.textContent = roles[0];
+    window.setTimeout(tick, 1600);
   }
 
   function initReveals() {
