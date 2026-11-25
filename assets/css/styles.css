@@ -10,6 +10,7 @@
   --amber-deep: #c56e24;
   --shadow: 0 24px 50px rgba(58, 30, 46, 0.12);
   --header: 72px;
+  --section-space: 59px;
   --sans: Manrope, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, monospace;
   --radius: 22px;
@@ -847,7 +848,9 @@ ul {
 }
 
 .section {
-  padding: 88px 0;
+  padding: var(--section-space) 0;
+  /* Anchor jumps land the section heading 16px below the sticky header. */
+  scroll-margin-top: calc(var(--header) + 16px - var(--section-space));
   /* Hover effects such as the certificate backdrop reach past the content edge; clip them at the viewport
      instead of letting them add a horizontal scrollbar. */
   overflow-x: clip;
