@@ -848,6 +848,9 @@ ul {
 
 .section {
   padding: 88px 0;
+  /* Hover effects such as the certificate backdrop reach past the content edge; clip them at the viewport
+     instead of letting them add a horizontal scrollbar. */
+  overflow-x: clip;
 }
 
 .section-head {
