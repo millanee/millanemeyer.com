@@ -924,7 +924,8 @@ ul {
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* minmax(0, …) so single long German labels ("Studienteilnehmende") cannot push two columns past 320px. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -947,6 +948,7 @@ ul {
   margin-top: 8px;
   color: var(--muted);
   font-size: 0.92rem;
+  overflow-wrap: break-word;
 }
 
 .timeline {
